@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Streamlit secrets (keep config.toml tracked)
+.streamlit/secrets.toml
+
+# OS
+Thumbs.db
+.DS_Store

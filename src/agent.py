@@ -3,7 +3,7 @@ Sell recommender agent.
 
 Origin is the FARMER's GPS location (lat, lon), passed in by the interface.
 The agent ranks the 6 mandis by net realizable price and decides where and when
-to sell.
+to sell, returning a detailed line plus a simple English and a Marathi line.
 
 Scope (from the benchmarking findings):
   RELIABLE  : WHERE to sell now. Cross-mandi current price minus transport and
@@ -12,10 +12,9 @@ Scope (from the benchmarking findings):
               confident, i.e. even its pessimistic band (net of costs) beats
               selling now by the minimum margin.
 
-Distances: 72 km filter on straight-line haversine (widened from the 50 km example
-so any farmer in the cluster reaches all 6 mandis); transport is costed on road
+Distances: 72 km filter on straight-line haversine; transport is costed on road
 distance = haversine x circuity factor.
-Run: python src/agent.py   (prints an example for a sample farmer location)
+Run: python src/agent.py
 """
 from dataclasses import dataclass
 import numpy as np, pandas as pd
@@ -25,6 +24,10 @@ import forecast_model as fm
 COORD = {"Nasik": (20.030438, 73.794670), "Pimpalgaon": (20.186079, 73.952246),
          "Lasalgaon": (20.141588, 74.237296), "Manmad": (20.260700, 74.436886),
          "Chandvad": (20.329809, 74.236159), "Yeola": (20.047174, 74.481917)}
+
+# Marathi (Devanagari) names for the farmer-facing reply
+MARATHI = {"Nasik": "नाशिक", "Pimpalgaon": "पिंपळगाव", "Lasalgaon": "लासलगाव",
+           "Manmad": "मनमाड", "Chandvad": "चांदवड", "Yeola": "येवला"}
 
 # cost assumptions (stated, easy to move for the sensitivity check)
 T_RATE = 3.0       # Rs per quintal per km (one-way freight, on road distance)
@@ -47,9 +50,14 @@ def haversine(a, b):
 
 @dataclass
 class Reco:
-    text: str
+    text: str            # detailed line
+    simple_en: str       # plain English one-liner
+    marathi: str         # same message in Marathi
     table: pd.DataFrame
-    action: str        # "sell_now" | "hold" | "none"
+    action: str          # "sell_now" | "hold" | "none"
+    rec_mandi: str | None
+    rec_net: int | None
+    rec_km: float | None
 
 
 def recommend(farmer_lat, farmer_lon, qty=100, radius_km=RADIUS_KM, hold_days=HOLD_DAYS,
@@ -77,8 +85,9 @@ def recommend(farmer_lat, farmer_lon, qty=100, radius_km=RADIUS_KM, hold_days=HO
                      "net_hold_low": round(f.lower - transport - storage)})
 
     if not rows:
-        return Reco(f"No mandi within {radius_km} km of the given location.",
-                    pd.DataFrame(), "none")
+        en = f"No mandi found within {radius_km} km of your location."
+        mr = f"तुमच्या ठिकाणापासून {radius_km} किमी अंतरात कोणतीही बाजार समिती आढळली नाही."
+        return Reco(en, en, mr, pd.DataFrame(), "none", None, None, None)
 
     R = pd.DataFrame(rows).sort_values("net_now", ascending=False).reset_index(drop=True)
     best_now = R.loc[R["net_now"].idxmax()]
@@ -86,30 +95,36 @@ def recommend(farmer_lat, farmer_lon, qty=100, radius_km=RADIUS_KM, hold_days=HO
     hold_confident = best_hold["net_hold_low"] > best_now["net_now"] + min_margin
 
     if hold_confident:
-        gain = int(best_hold["net_hold"]) - int(best_now["net_now"])
-        text = (f"Hold about {hold_days} days and sell around {sell_date.date()} at "
-                f"{best_hold['mandi']} ({best_hold['km']} km) for about Rs "
-                f"{int(best_hold['net_hold'])}/qtl net, roughly Rs {gain} more per quintal "
+        mkt = best_hold["mandi"]; net = int(best_hold["net_hold"]); km = best_hold["km"]
+        gain = net - int(best_now["net_now"])
+        text = (f"Hold about {hold_days} days and sell around {sell_date.date()} at {mkt} "
+                f"({km} km) for about Rs {net}/qtl net, roughly Rs {gain} more per quintal "
                 f"than selling now at {best_now['mandi']}. Even the low forecast "
-                f"(Rs {int(best_hold['net_hold_low'])}) beats selling now, so the wait is "
-                f"worth it. For {qty} quintal that is about Rs {gain * qty:,} extra.")
-        action = "hold"
+                f"(Rs {int(best_hold['net_hold_low'])}) beats selling now. For {qty} quintal "
+                f"that is about Rs {gain * qty:,} extra.")
+        simple_en = (f"Wait about {hold_days} days, then sell at {mkt} ({km} km away). You get "
+                     f"about Rs {net} per quintal, roughly Rs {gain} more than selling now.")
+        marathi = (f"सुमारे {hold_days} दिवस थांबा, नंतर {MARATHI[mkt]} ({km} किमी अंतरावर) येथे "
+                   f"विका. सुमारे रुपये {net} प्रति क्विंटल मिळतील, जे आत्ता विकण्यापेक्षा सुमारे "
+                   f"रुपये {gain} जास्त आहेत.")
+        action, rec_mandi, rec_net, rec_km = "hold", mkt, net, km
     else:
-        text = (f"Cart to {best_now['mandi']} ({best_now['km']} km) and sell now for about "
-                f"Rs {int(best_now['net_now'])}/qtl net after transport. Holding a week is not "
-                f"confidently better, so do not wait.")
-        action = "sell_now"
+        mkt = best_now["mandi"]; net = int(best_now["net_now"]); km = best_now["km"]
+        text = (f"Cart to {mkt} ({km} km) and sell now for about Rs {net}/qtl net after "
+                f"transport. Holding a week is not confidently better, so do not wait.")
+        simple_en = (f"Sell your onions now at {mkt} ({km} km away). You get about Rs {net} "
+                     f"per quintal after transport.")
+        marathi = (f"तुमचा कांदा आत्ताच {MARATHI[mkt]} ({km} किमी अंतरावर) येथे विका. वाहतूक "
+                   f"खर्च वजा करून सुमारे रुपये {net} प्रति क्विंटल मिळतील.")
+        action, rec_mandi, rec_net, rec_km = "sell_now", mkt, net, km
 
-    return Reco(text, R, action)
+    return Reco(text, simple_en, marathi, R, action, rec_mandi, rec_net, rec_km)
 
 
 if __name__ == "__main__":
-    # sample farmer near the Niphad / Lasalgaon belt
-    LAT, LON, QTY = 20.08, 74.10, 100
-    r = recommend(LAT, LON, QTY)
-    print(f"Farmer at ({LAT}, {LON}) | qty: {QTY} qtl | as-of: {max(fm.last_date(m) for m in COORD).date()}")
-    print(f"Assumptions: transport Rs {T_RATE}/qtl/km on road (x{CIRCUITY} circuity), "
-          f"storage Rs {S_RATE}/qtl/day, hold {HOLD_DAYS} days, min margin Rs {MIN_MARGIN}, "
-          f"{int(ALPHA*100)}% band\n")
+    r = recommend(20.08, 74.10, 100)
+    print("ACTION:", r.action)
+    print("EN     :", r.simple_en)
+    print("MR     :", r.marathi)
+    print("DETAIL :", r.text)
     print(r.table.to_string(index=False))
-    print(f"\nRECOMMENDATION ({r.action}):\n{r.text}")
