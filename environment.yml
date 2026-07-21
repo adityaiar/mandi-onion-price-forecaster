@@ -1,0 +1,19 @@
+name: onion
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pandas
+  - numpy=2.2.*           # 2.4 + MKL 2026 crashes LAPACK on Windows
+  - libblas=*=*openblas   # avoid bleeding-edge MKL; OpenBLAS is stable here
+  - scipy
+  - openpyxl
+  - scikit-learn
+  - statsmodels
+  - prophet
+  - lightgbm
+  - xgboost
+  - matplotlib
+  - jupyterlab
+  - streamlit
+  - geopy

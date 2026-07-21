@@ -1,0 +1,15 @@
+farmer,scenario,transport,storage,recommended,net_Rs,action
+near Manmad (east),Baseline,3.0,5.0,Lasalgaon,1513,sell_now
+near Manmad (east),Fuel +25%,3.75,5.0,Lasalgaon,1491,sell_now
+near Manmad (east),Fuel +50%,4.5,5.0,Manmad,1485,sell_now
+near Manmad (east),Fuel +100%,6.0,5.0,Manmad,1481,sell_now
+near Manmad (east),Storage +50%,3.0,7.5,Lasalgaon,1513,sell_now
+near Manmad (east),Storage +100%,3.0,10.0,Lasalgaon,1513,sell_now
+near Manmad (east),Fuel & storage +50%,4.5,7.5,Manmad,1485,sell_now
+central belt,Baseline,3.0,5.0,Lasalgaon,1538,sell_now
+central belt,Fuel +25%,3.75,5.0,Lasalgaon,1523,sell_now
+central belt,Fuel +50%,4.5,5.0,Lasalgaon,1507,sell_now
+central belt,Fuel +100%,6.0,5.0,Lasalgaon,1476,sell_now
+central belt,Storage +50%,3.0,7.5,Lasalgaon,1538,sell_now
+central belt,Storage +100%,3.0,10.0,Lasalgaon,1538,sell_now
+central belt,Fuel & storage +50%,4.5,7.5,Lasalgaon,1507,sell_now
