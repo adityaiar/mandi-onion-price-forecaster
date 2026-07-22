@@ -17,3 +17,4 @@ dependencies:
   - jupyterlab
   - streamlit
   - geopy
+  - anthropic          # optional LLM reply layer (only used if ANTHROPIC_API_KEY is set)

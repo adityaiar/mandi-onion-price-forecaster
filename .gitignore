@@ -4,8 +4,14 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Streamlit secrets (keep config.toml tracked)
-.streamlit/secrets.toml
+# glob covers secrets.toml and mis-saved variants like secrets.toml.txt
+.streamlit/secrets.toml*
+**/secrets.toml*
 
 # OS
 Thumbs.db
 .DS_Store
+
+# doc build artifacts (regenerated from build_doc.js / soffice)
+docs/*.pdf
+docs/page-*.png
